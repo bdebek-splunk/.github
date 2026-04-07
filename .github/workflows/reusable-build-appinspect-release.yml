@@ -119,6 +119,7 @@ jobs:
           app_path: dist
           included_tags: ${{ matrix.tags }}
       - uses: actions/upload-artifact@v6
+        if: always()
         with:
           name: appinspect_result_${{ matrix.tags }}
           path: appinspect_result.json
