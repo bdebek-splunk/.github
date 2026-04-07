@@ -92,11 +92,11 @@ jobs:
           REPO_NAME: ${{ github.event.repository.name }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          tar --exclude=".git" -czf "${REPO_NAME}.tar.gz" .
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
           S3_URI="s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.tar.gz"
+          tar --exclude="./.git" --exclude="./appinspect_results" --exclude="./appinspect_result.json" -czf "/tmp/${REPO_NAME}.tar.gz" .
           echo "Uploading to: ${S3_URI}"
-          aws s3 cp "${REPO_NAME}.tar.gz" "${S3_URI}"
+          aws s3 cp "/tmp/${REPO_NAME}.tar.gz" "${S3_URI}"
 
       - name: Analyze and fix issues with AI agent
         id: invoke-agent-runtime
