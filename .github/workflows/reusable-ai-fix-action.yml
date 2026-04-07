@@ -82,7 +82,7 @@ jobs:
 
       - name: Merge AppInspect results into single file
         run: |
-          jq -s '{ reports: . }' appinspect_results/*/appinspect_result.json > appinspect_result.json
+          jq -s '.' appinspect_results/*/appinspect_result.json > appinspect_result.json
 
       - name: Zip and upload repo to S3
         env:
