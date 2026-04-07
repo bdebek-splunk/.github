@@ -82,16 +82,24 @@ jobs:
 
       - name: Copy AppInspect result
         run: |
-          echo "=== Raw AppInspect structure (top-level keys) ==="
-          jq 'keys' appinspect_results/appinspect_result.json
-          echo "=== reports[0] top-level keys ==="
-          jq '.reports[0] | keys' appinspect_results/appinspect_result.json
-          echo "=== groups count ==="
-          jq '.reports[0].groups | length' appinspect_results/appinspect_result.json
-          # Pre-filter to failures only
-          jq '{request_id: .request_id, reports: [.reports[0] | {groups: (.groups | map(.checks |= map(select(.result == "failure")) | select(.checks | length > 0)))}]}' appinspect_results/appinspect_result.json > appinspect_result.json
-          echo "=== Filtered result groups count ==="
-          jq '.reports[0].groups | length' appinspect_result.json
+          # Produce the exact format that _filter_report_for_errors exports:
+          # [{"group_name": "...", "check_messages": [{"message": "...", "message_filename": "...", "message_line": ...}]}]
+          jq '[
+            .reports[0].groups[] |
+            . as $group |
+            .checks[] |
+            select(.result == "failure") |
+            {
+              group_name: $group.name,
+              check_messages: [
+                .messages[] |
+                select(.result == "failure") |
+                {message: .message, message_filename: .message_filename, message_line: .message_line}
+              ]
+            }
+          ]' appinspect_results/appinspect_result.json > appinspect_result.json
+          echo "=== Failures found ==="
+          jq 'length' appinspect_result.json
 
       - name: Zip and upload repo to S3
         env:
@@ -133,14 +141,15 @@ jobs:
 
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
 
-          # Build payload using jq --slurpfile to read the JSON report from disk
+          # Build payload - vetting_report is a pre-filtered flat list of failures
+          # matching the output of _filter_report_for_errors, passed as a JSON string
           jq -n \
             --arg repo "${REPO_NAME}" \
             --arg bucket "${BUCKET}" \
             --arg key "repos/${RUN_ID}/${REPO_NAME}.tar.gz" \
             --rawfile prompt prompt.txt \
-            --slurpfile vetting appinspect_result.json \
-            '{gh_repo_name: $repo, s3_bucket: $bucket, s3_key: $key, prompt: $prompt, vetting_report: ($vetting[0] | tojson)}' > payload.json
+            --rawfile vetting appinspect_result.json \
+            '{gh_repo_name: $repo, s3_bucket: $bucket, s3_key: $key, prompt: $prompt, vetting_report: $vetting}' > payload.json
 
           echo "Starting agent..."
 
