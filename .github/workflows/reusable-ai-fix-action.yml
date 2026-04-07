@@ -82,7 +82,14 @@ jobs:
 
       - name: Copy AppInspect result
         run: |
-          cp appinspect_results/appinspect_result.json appinspect_result.json
+          # Pre-filter to failures only, matching what the agent's _filter_report_for_errors does
+          # This produces: {"reports": [{"groups": [...failures only...]}]}
+          jq '
+            .reports[0].groups |= map(
+              .checks |= map(select(.result == "failure"))
+              | select(.checks | length > 0)
+            )
+          ' appinspect_results/appinspect_result.json > appinspect_result.json
 
       - name: Zip and upload repo to S3
         env:
