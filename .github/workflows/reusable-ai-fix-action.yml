@@ -82,14 +82,16 @@ jobs:
 
       - name: Copy AppInspect result
         run: |
-          # Pre-filter to failures only, matching what the agent's _filter_report_for_errors does
-          # This produces: {"reports": [{"groups": [...failures only...]}]}
-          jq '
-            .reports[0].groups |= map(
-              .checks |= map(select(.result == "failure"))
-              | select(.checks | length > 0)
-            )
-          ' appinspect_results/appinspect_result.json > appinspect_result.json
+          echo "=== Raw AppInspect structure (top-level keys) ==="
+          jq 'keys' appinspect_results/appinspect_result.json
+          echo "=== reports[0] top-level keys ==="
+          jq '.reports[0] | keys' appinspect_results/appinspect_result.json
+          echo "=== groups count ==="
+          jq '.reports[0].groups | length' appinspect_results/appinspect_result.json
+          # Pre-filter to failures only
+          jq '{request_id: .request_id, reports: [.reports[0] | {groups: (.groups | map(.checks |= map(select(.result == "failure")) | select(.checks | length > 0)))}]}' appinspect_results/appinspect_result.json > appinspect_result.json
+          echo "=== Filtered result groups count ==="
+          jq '.reports[0].groups | length' appinspect_result.json
 
       - name: Zip and upload repo to S3
         env:
@@ -206,7 +208,7 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: |
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
-          aws s3 rm "s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.zip"
+          aws s3 rm "s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.tar.gz"
 
       - name: Commit and push changes
         run: |
