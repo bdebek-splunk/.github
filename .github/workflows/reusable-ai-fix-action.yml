@@ -124,13 +124,13 @@ jobs:
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
 
           # Build payload using jq --slurpfile to read the JSON report from disk
-          PAYLOAD=$(jq -n \
+          jq -n \
             --arg repo "${REPO_NAME}" \
             --arg bucket "${BUCKET}" \
             --arg key "repos/${RUN_ID}/${REPO_NAME}.zip" \
             --rawfile prompt prompt.txt \
             --slurpfile vetting appinspect_result.json \
-            '{gh_repo_name: $repo, s3_bucket: $bucket, s3_key: $key, prompt: $prompt, vetting_report: $vetting[0]}')
+            '{gh_repo_name: $repo, s3_bucket: $bucket, s3_key: $key, prompt: $prompt, vetting_report: $vetting[0]}' > payload.json
 
           echo "Starting agent..."
 
@@ -140,7 +140,7 @@ jobs:
             --cli-binary-format raw-in-base64-out \
             --cli-read-timeout 600 \
             --cli-connect-timeout 60 \
-            --payload "$PAYLOAD" \
+            --payload file://payload.json \
             --output json \
             ./out.json
 
