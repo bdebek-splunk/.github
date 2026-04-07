@@ -92,11 +92,11 @@ jobs:
           REPO_NAME: ${{ github.event.repository.name }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          zip -r "${REPO_NAME}.zip" . --exclude ".git/*"
+          tar --exclude=".git" -czf "${REPO_NAME}.tar.gz" .
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
-          S3_URI="s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.zip"
+          S3_URI="s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.tar.gz"
           echo "Uploading to: ${S3_URI}"
-          aws s3 cp "${REPO_NAME}.zip" "${S3_URI}"
+          aws s3 cp "${REPO_NAME}.tar.gz" "${S3_URI}"
 
       - name: Analyze and fix issues with AI agent
         id: invoke-agent-runtime
@@ -128,7 +128,7 @@ jobs:
           jq -n \
             --arg repo "${REPO_NAME}" \
             --arg bucket "${BUCKET}" \
-            --arg key "repos/${RUN_ID}/${REPO_NAME}.zip" \
+            --arg key "repos/${RUN_ID}/${REPO_NAME}.tar.gz" \
             --rawfile prompt prompt.txt \
             --slurpfile vetting appinspect_result.json \
             '{gh_repo_name: $repo, s3_bucket: $bucket, s3_key: $key, prompt: $prompt, vetting_report: $vetting[0]}' > payload.json
@@ -184,10 +184,10 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: |
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
-          S3_URI="s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.zip"
+          S3_URI="s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.tar.gz"
           echo "Downloading from: ${S3_URI}"
-          aws s3 cp "${S3_URI}" ./updated_repo.zip
-          unzip -o ./updated_repo.zip -d .
+          aws s3 cp "${S3_URI}" ./updated_repo.tar.gz
+          tar -xzf ./updated_repo.tar.gz -C .
 
       - name: Cleanup S3 artifact
         if: always() # runs even if previous steps failed
