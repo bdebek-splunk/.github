@@ -88,10 +88,14 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          cd ..
-          zip -r ${{ github.event.repository.name }}.zip ${{ github.event.repository.name }}
-          aws s3 cp ${{ github.event.repository.name }}.zip s3://${{ secrets.S3_BUCKET }}/repos/${{ github.run_id }}/${{ github.event.repository.name }}.zip
+          zip -r "${REPO_NAME}.zip" . --exclude ".git/*"
+          S3_URI="s3://${S3_BUCKET}/repos/${RUN_ID}/${REPO_NAME}.zip"
+          echo "Uploading to: ${S3_URI}"
+          aws s3 cp "${REPO_NAME}.zip" "${S3_URI}"
 
       - name: Analyze and fix issues with AI agent
         id: invoke-agent-runtime
@@ -163,18 +167,25 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          aws s3 cp s3://${{ secrets.S3_BUCKET }}/repos/${{ github.run_id }}/${{ github.event.repository.name }}.zip ./updated_repo.zip
-          cd ..
-          unzip -o ${{ github.workspace }}/updated_repo.zip
+          S3_URI="s3://${S3_BUCKET}/repos/${RUN_ID}/${REPO_NAME}.zip"
+          echo "Downloading from: ${S3_URI}"
+          aws s3 cp "${S3_URI}" ./updated_repo.zip
+          unzip -o ./updated_repo.zip -d .
 
       - name: Cleanup S3 artifact
         if: always() # runs even if previous steps failed
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          aws s3 rm s3://${{ secrets.S3_BUCKET }}/repos/${{ github.run_id }}/${{ github.event.repository.name }}.zip
+          aws s3 rm "s3://${S3_BUCKET}/repos/${RUN_ID}/${REPO_NAME}.zip"
 
       - name: Commit and push changes
         run: |
