@@ -77,12 +77,12 @@ jobs:
       - name: Download AppInspect failures report
         uses: actions/download-artifact@v4
         with:
-          pattern: appinspect_result_*
+          name: appinspect_result_private_victoria
           path: appinspect_results
 
-      - name: Merge AppInspect results into single file
+      - name: Copy AppInspect result
         run: |
-          jq -s '.' appinspect_results/*/appinspect_result.json > appinspect_result.json
+          cp appinspect_results/appinspect_result.json appinspect_result.json
 
       - name: Zip and upload repo to S3
         env:
