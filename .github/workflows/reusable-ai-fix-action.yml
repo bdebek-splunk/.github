@@ -111,7 +111,12 @@ jobs:
         run: |
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
           S3_URI="s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.tar.gz"
-          tar --exclude="./.git" --exclude="./appinspect_results" --exclude="./appinspect_result.json" -czf "/tmp/${REPO_NAME}.tar.gz" .
+          # Archive with repo name as the top-level directory so agent finds it at /tmp/working/${REPO_NAME}
+          cd ..
+          tar --exclude="./${REPO_NAME}/.git" \
+              --exclude="./${REPO_NAME}/appinspect_results" \
+              --exclude="./${REPO_NAME}/appinspect_result.json" \
+              -czf "/tmp/${REPO_NAME}.tar.gz" "./${REPO_NAME}"
           echo "Uploading to: ${S3_URI}"
           aws s3 cp "/tmp/${REPO_NAME}.tar.gz" "${S3_URI}"
 
