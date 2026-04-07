@@ -93,7 +93,8 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: |
           zip -r "${REPO_NAME}.zip" . --exclude ".git/*"
-          S3_URI="s3://${S3_BUCKET}/repos/${RUN_ID}/${REPO_NAME}.zip"
+          BUCKET=$(echo "${S3_BUCKET}" | xargs)
+          S3_URI="s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.zip"
           echo "Uploading to: ${S3_URI}"
           aws s3 cp "${REPO_NAME}.zip" "${S3_URI}"
 
@@ -182,7 +183,8 @@ jobs:
           REPO_NAME: ${{ github.event.repository.name }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          S3_URI="s3://${S3_BUCKET}/repos/${RUN_ID}/${REPO_NAME}.zip"
+          BUCKET=$(echo "${S3_BUCKET}" | xargs)
+          S3_URI="s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.zip"
           echo "Downloading from: ${S3_URI}"
           aws s3 cp "${S3_URI}" ./updated_repo.zip
           unzip -o ./updated_repo.zip -d .
@@ -196,7 +198,8 @@ jobs:
           REPO_NAME: ${{ github.event.repository.name }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          aws s3 rm "s3://${S3_BUCKET}/repos/${RUN_ID}/${REPO_NAME}.zip"
+          BUCKET=$(echo "${S3_BUCKET}" | xargs)
+          aws s3 rm "s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.zip"
 
       - name: Commit and push changes
         run: |
