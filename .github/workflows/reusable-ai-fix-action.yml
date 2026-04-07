@@ -131,7 +131,7 @@ jobs:
             --arg key "repos/${RUN_ID}/${REPO_NAME}.tar.gz" \
             --rawfile prompt prompt.txt \
             --slurpfile vetting appinspect_result.json \
-            '{gh_repo_name: $repo, s3_bucket: $bucket, s3_key: $key, prompt: $prompt, vetting_report: $vetting[0]}' > payload.json
+            '{gh_repo_name: $repo, s3_bucket: $bucket, s3_key: $key, prompt: $prompt, vetting_report: ($vetting[0] | tojson)}' > payload.json
 
           echo "Starting agent..."
 
