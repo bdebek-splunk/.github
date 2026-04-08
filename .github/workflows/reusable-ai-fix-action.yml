@@ -209,8 +209,9 @@ jobs:
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
           S3_URI="s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.tar.gz"
           echo "Downloading from: ${S3_URI}"
-          aws s3 cp "${S3_URI}" ./updated_repo.tar.gz
-          tar -xzf ./updated_repo.tar.gz -C .
+          aws s3 cp "${S3_URI}" /tmp/updated_repo.tar.gz
+          # Extract into parent dir — archive root is ${REPO_NAME}/, so files land in workspace
+          tar -xzf /tmp/updated_repo.tar.gz -C ..
 
       - name: Cleanup S3 artifact
         if: always() # runs even if previous steps failed
@@ -229,7 +230,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout ${{ steps.create-branch.outputs.branch_name }}
+          # Exclude temp/workflow files from commit
           git add -A
+          git reset HEAD -- appinspect_result.json appinspect_results/ out.json payload.json prompt.txt updated_repo.tar.gz agent_answer.md || true
           git diff --staged --quiet || git commit -m "fix: AI automated fix for issue #${{ github.event.issue.number }}"
           git push origin ${{ steps.create-branch.outputs.branch_name }}
 
