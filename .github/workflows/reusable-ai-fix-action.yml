@@ -166,7 +166,7 @@ jobs:
             --cli-connect-timeout 60 \
             --payload file://payload.json \
             --output json \
-            ./out.json
+            ./out.json || true
 
           echo "=== Agent Output Log ==="
           cat ./out.json
