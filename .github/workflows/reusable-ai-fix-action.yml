@@ -98,6 +98,8 @@ jobs:
               ]
             }
           ]' appinspect_results/appinspect_result.json > appinspect_result.json
+          echo "=== appinspect_result.json ==="
+          cat appinspect_result.json
           echo "=== Failures found ==="
           jq 'length' appinspect_result.json
 
