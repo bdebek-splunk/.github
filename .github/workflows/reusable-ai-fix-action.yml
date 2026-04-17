@@ -193,6 +193,8 @@ jobs:
 
           echo "=== Parsed Inner JSON ==="
           echo "$INNER_JSON" | jq '.'
+          echo "=== Available keys ==="
+          echo "$INNER_JSON" | jq 'keys'
 
           # Check for error in the response
           if echo "$INNER_JSON" | jq -e '.error' > /dev/null 2>&1; then
@@ -200,7 +202,9 @@ jobs:
             exit 1
           fi
 
-          echo "$INNER_JSON" | jq -r '.agent_answer' > agent_answer.md
+          # Try agent_answer first, fall back to other common keys
+          ANSWER=$(echo "$INNER_JSON" | jq -r '.agent_answer // .answer // .response // .result // .output // "No answer field found in agent response"')
+          echo "$ANSWER" > agent_answer.md
           echo "=== Agent Answer ==="
           cat agent_answer.md
 
@@ -219,17 +223,17 @@ jobs:
           # Extract into parent dir — archive root is ${REPO_NAME}/, so files land in workspace
           tar -xzf /tmp/updated_repo.tar.gz -C ..
 
-      # - name: Cleanup S3 artifact
-      #   if: always() # runs even if previous steps failed
-      #   env:
-      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     S3_BUCKET: ${{ secrets.S3_BUCKET }}
-      #     REPO_NAME: ${{ github.event.repository.name }}
-      #     RUN_ID: ${{ github.run_id }}
-      #   run: |
-      #     BUCKET=$(echo "${S3_BUCKET}" | xargs)
-      #     aws s3 rm "s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.tar.gz"
+      - name: Cleanup S3 artifact
+        if: always() # runs even if previous steps failed
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          BUCKET=$(echo "${S3_BUCKET}" | xargs)
+          aws s3 rm "s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.tar.gz"
 
       - name: Commit and push changes
         run: |
