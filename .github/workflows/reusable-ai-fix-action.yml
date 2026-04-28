@@ -141,9 +141,9 @@ jobs:
           Then attempt to fix the app.
           Do not ask for permission or conformation, just do it!
 
-          IMPORTANT: This is a UCC-based Splunk app. The repository root contains a "package/" subdirectory which is the actual Splunk app source.
-          The app files to fix are located at: /tmp/working/fdse_test_oracle_sbc_app_for_splunk_ucc/package/
-          When you need to package the app for vetting, use the path: /tmp/working/fdse_test_oracle_sbc_app_for_splunk_ucc/package
+          IMPORTANT: If the repository contains package/ directory in main folder it means this is a UCC app 
+          and the files in package/ are the ones that should be fixed. If there is no package/ directory, 
+          then all files in the repo are in scope for fixes.
 
           Write me a summary of the changes performed like you would write the summary of a Pull Request!
 
