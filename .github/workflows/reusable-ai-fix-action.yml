@@ -82,26 +82,9 @@ jobs:
 
       - name: Copy AppInspect result
         run: |
-          # Produce the exact format that _filter_report_for_errors exports:
-          # [{"group_name": "...", "check_messages": [{"message": "...", "message_filename": "...", "message_line": ...}]}]
-          jq '[
-            .reports[0].groups[] |
-            . as $group |
-            .checks[] |
-            select(.result == "failure") |
-            {
-              group_name: $group.name,
-              check_messages: [
-                .messages[] |
-                select(.result == "failure") |
-                {message: .message, message_filename: .message_filename, message_line: .message_line}
-              ]
-            }
-          ]' appinspect_results/appinspect_result.json > appinspect_result.json
+          cp appinspect_results/appinspect_result.json appinspect_result.json
           echo "=== appinspect_result.json ==="
           cat appinspect_result.json
-          echo "=== Failures found ==="
-          jq 'length' appinspect_result.json
 
       - name: Zip and upload repo to S3
         env:
