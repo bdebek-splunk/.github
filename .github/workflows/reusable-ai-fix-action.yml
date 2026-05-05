@@ -154,24 +154,34 @@ jobs:
 
           echo "Starting agent..."
 
+          # || true: a CLI read-timeout (exit 255) means the agent ran longer than
+          # the socket wait, but the agent continues running and will still upload
+          # the fixed repo to S3. We capture whatever partial output arrived and
+          # proceed — the parse step will handle missing/error output gracefully.
           aws bedrock-agentcore invoke-agent-runtime \
             --agent-runtime-arn "${AGENTCORE_AGENT_ARN}" \
             --region "${AWS_REGION}" \
             --cli-binary-format raw-in-base64-out \
-            --cli-read-timeout 600 \
+            --cli-read-timeout 900 \
             --cli-connect-timeout 60 \
             --payload file://payload.json \
             --output json \
-            ./out.json
+            ./out.json || true
 
           echo "=== Agent Output Log ==="
-          cat ./out.json
+          cat ./out.json || echo "(no output captured)"
 
       - name: Parse agent output
         id: parse-output
         run: |
           echo "=== Raw Agent Output ==="
-          cat ./out.json
+          cat ./out.json 2>/dev/null || echo "(out.json not present — likely a read timeout; agent may have still completed)"
+
+          # If out.json is missing or empty, skip parsing and write a placeholder
+          if [ ! -s ./out.json ]; then
+            echo "Agent response not captured (read timeout). Proceeding to download fixed repo from S3." > agent_answer.md
+            exit 0
+          fi
 
           RAW=$(grep '^data:' ./out.json | tail -n1 | sed 's/^data: //')
           FIRST_CHAR=$(echo "$RAW" | cut -c1)
