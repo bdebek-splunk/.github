@@ -7,12 +7,6 @@ on:
         required: true
       AWS_SECRET_ACCESS_KEY:
         required: true
-      AWS_REGION:
-        required: true
-      AGENTCORE_AGENT_ARN:
-        required: true
-      S3_BUCKET:
-        required: true
     outputs:
       pr_number:
         description: "The PR number created by the AI agent"
@@ -40,6 +34,21 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Load config from appforgeai-controller/config.yaml
+        run: |
+          python3 - << 'EOF'
+          import yaml, os
+          with open(".github/appforgeai-controller/config.yaml") as f:
+              cfg = yaml.safe_load(f)
+          aws = cfg.get("aws", {})
+          env_file = os.environ["GITHUB_ENV"]
+          with open(env_file, "a") as ef:
+              ef.write(f"AWS_REGION={aws['region']}\n")
+              ef.write(f"S3_BUCKET={aws['s3']['bucket']}\n")
+              ef.write(f"S3_PREFIX={aws['s3']['prefix']}\n")
+              ef.write(f"AGENTCORE_AGENT_ARN={aws['agentcore']['runtime_arn']}\n")
+          EOF
 
       - name: Set up Python 3.11.14
         uses: actions/setup-python@v5
@@ -90,12 +99,12 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          S3_BUCKET: ${{ secrets.S3_BUCKET }}
           REPO_NAME: ${{ github.event.repository.name }}
           RUN_ID: ${{ github.run_id }}
         run: |
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
-          S3_URI="s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.tar.gz"
+          PREFIX=$(echo "${S3_PREFIX}" | xargs)
+          S3_URI="s3://${BUCKET}/${PREFIX}/${REPO_NAME}_${RUN_ID}/repo.tar.gz"
           # Archive with repo name as the top-level directory so agent finds it at /tmp/working/${REPO_NAME}
           cd ..
           tar --exclude="./${REPO_NAME}/.git" \
@@ -110,9 +119,6 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AGENTCORE_AGENT_ARN: ${{ secrets.AGENTCORE_AGENT_ARN }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          S3_BUCKET: ${{ secrets.S3_BUCKET }}
           REPO_NAME: ${{ github.event.repository.name }}
           RUN_ID: ${{ github.run_id }}
         run: |
@@ -134,13 +140,14 @@ jobs:
           PROMPT_EOF
 
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
+          PREFIX=$(echo "${S3_PREFIX}" | xargs)
 
           # Build payload - vetting_report is a pre-filtered flat list of failures
           # matching the output of _filter_report_for_errors, passed as a JSON string
           jq -n \
             --arg repo "${REPO_NAME}" \
             --arg bucket "${BUCKET}" \
-            --arg key "repos/${RUN_ID}/${REPO_NAME}.tar.gz" \
+            --arg key "${PREFIX}/${REPO_NAME}_${RUN_ID}/repo.tar.gz" \
             --rawfile prompt prompt.txt \
             --rawfile vetting appinspect_result.json \
             '{gh_repo_name: $repo, s3_bucket: $bucket, s3_key: $key, prompt: $prompt, vetting_report: $vetting}' > payload.json
@@ -195,12 +202,12 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          S3_BUCKET: ${{ secrets.S3_BUCKET }}
           REPO_NAME: ${{ github.event.repository.name }}
           RUN_ID: ${{ github.run_id }}
         run: |
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
-          S3_URI="s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.tar.gz"
+          PREFIX=$(echo "${S3_PREFIX}" | xargs)
+          S3_URI="s3://${BUCKET}/${PREFIX}/${REPO_NAME}_${RUN_ID}/repo.tar.gz"
           echo "Downloading from: ${S3_URI}"
           aws s3 cp "${S3_URI}" /tmp/updated_repo.tar.gz
           # Extract into parent dir — archive root is ${REPO_NAME}/, so files land in workspace
@@ -211,12 +218,12 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          S3_BUCKET: ${{ secrets.S3_BUCKET }}
           REPO_NAME: ${{ github.event.repository.name }}
           RUN_ID: ${{ github.run_id }}
         run: |
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
-          aws s3 rm "s3://${BUCKET}/repos/${RUN_ID}/${REPO_NAME}.tar.gz"
+          PREFIX=$(echo "${S3_PREFIX}" | xargs)
+          aws s3 rm "s3://${BUCKET}/${PREFIX}/${REPO_NAME}_${RUN_ID}/repo.tar.gz"
 
       - name: Commit and push changes
         run: |
