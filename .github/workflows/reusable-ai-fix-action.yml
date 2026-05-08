@@ -121,6 +121,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           REPO_NAME: ${{ github.event.repository.name }}
           RUN_ID: ${{ github.run_id }}
+          BOTOCORE_TCP_KEEPALIVE: "true"
         run: |
           # Write prompt to a file to avoid "Argument list too long"
           cat > prompt.txt << 'PROMPT_EOF'
