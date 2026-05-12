@@ -114,6 +114,19 @@ jobs:
           echo "Uploading to: ${S3_URI}"
           aws s3 cp "/tmp/${REPO_NAME}.tar.gz" "${S3_URI}"
 
+      - name: Filter vetting report to failures only
+        run: |
+          jq '[.reports[0].groups[].checks[] | select(.result == "failure") | {
+            check_name: .name,
+            group_name: (.description // ""),
+            check_messages: [.messages[] | {
+              message: .message,
+              message_filename: .message_filename,
+              message_line: .message_line
+            }]
+          }]' appinspect_result.json > vetting_failures.json
+          echo "Failures found: $(jq length vetting_failures.json)"
+
       - name: Analyze and fix issues with AI agent
         id: invoke-agent-runtime
         env:
@@ -150,7 +163,7 @@ jobs:
             --arg bucket "${BUCKET}" \
             --arg key "${PREFIX}/${REPO_NAME}_${RUN_ID}/repo.tar.gz" \
             --rawfile prompt prompt.txt \
-            --rawfile vetting appinspect_result.json \
+            --rawfile vetting vetting_failures.json \
             '{gh_repo_name: $repo, s3_bucket: $bucket, s3_key: $key, prompt: $prompt, vetting_report: $vetting}' > payload.json
 
           echo "Starting agent..."
