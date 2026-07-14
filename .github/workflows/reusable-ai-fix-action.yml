@@ -159,13 +159,14 @@ jobs:
           # Build payload - vetting_report is a pre-filtered flat list of failures
           # matching the output of _filter_report_for_errors, passed as a JSON string
           jq -n \
-            --arg repo "${REPO_NAME}" \
-            --arg bucket "${BUCKET}" \
-            --arg key "${PREFIX}/${REPO_NAME}_${RUN_ID}/repo.tar.gz" \
+            --arg repo "${{ github.run_id }}/${{ github.event.repository.name }}" \
             --rawfile prompt prompt.txt \
-            --rawfile vetting vetting_failures.json \
-            '{gh_repo_name: $repo, s3_bucket: $bucket, s3_key: $key, prompt: $prompt, vetting_report: $vetting}' > payload.json
+            --rawfile vetting appinspect_result.json \
+            '{package_name: $repo, prompt: $prompt, vetting_failures: $vetting}' > payload.json
 
+          echo "=== payload.json ==="
+          jq . payload.json
+          
           echo "Starting agent..."
 
           # || true: a CLI read-timeout (exit 255) means the agent ran longer than
