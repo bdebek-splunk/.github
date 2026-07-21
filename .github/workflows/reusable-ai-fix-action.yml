@@ -114,19 +114,6 @@ jobs:
           echo "Uploading to: ${S3_URI}"
           aws s3 cp "/tmp/${REPO_NAME}.tar.gz" "${S3_URI}"
 
-      - name: Filter vetting report to failures only
-        run: |
-          jq '[.reports[0].groups[].checks[] | select(.result == "failure") | {
-            check_name: .name,
-            group_name: (.description // ""),
-            check_messages: [.messages[] | {
-              message: .message,
-              message_filename: .message_filename,
-              message_line: .message_line
-            }]
-          }]' appinspect_result.json > vetting_failures.json
-          echo "Failures found: $(jq length vetting_failures.json)"
-
       - name: Analyze and fix issues with AI agent
         id: invoke-agent-runtime
         env:
@@ -215,8 +202,8 @@ jobs:
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
           PREFIX=$(echo "${S3_PREFIX}" | xargs)
 
-          # Build payload - vetting_report is a pre-filtered flat list of failures
-          # matching the output of _filter_report_for_errors, passed as a JSON string
+          # Build payload - pass failures list exactly as provided in appinspect_result.json
+          # while preserving the agent's expected payload contract.
           jq -n \
             --arg repo "${{ github.run_id }}/${{ github.event.repository.name }}" \
             --rawfile prompt prompt.txt \
