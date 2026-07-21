@@ -104,7 +104,7 @@ jobs:
         run: |
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
           PREFIX=$(echo "${S3_PREFIX}" | xargs)
-          S3_URI="s3://${BUCKET}/${PREFIX}/${REPO_NAME}_${RUN_ID}/repo.tar.gz"
+          S3_URI="s3://${BUCKET}/${PREFIX}/${REPO_NAME}/${RUN_ID}/repo.tar.gz"
           # Archive with repo name as the top-level directory so agent finds it at /tmp/working/${REPO_NAME}
           cd ..
           tar --exclude="./${REPO_NAME}/.git" \
@@ -232,7 +232,7 @@ jobs:
         run: |
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
           PREFIX=$(echo "${S3_PREFIX}" | xargs)
-          S3_URI="s3://${BUCKET}/${PREFIX}/${REPO_NAME}_${RUN_ID}/repo.tar.gz"
+          S3_URI="s3://${BUCKET}/${PREFIX}/${REPO_NAME}/${RUN_ID}/repo.tar.gz"
           echo "Downloading from: ${S3_URI}"
           aws s3 cp "${S3_URI}" /tmp/updated_repo.tar.gz
           # Extract into parent dir — archive root is ${REPO_NAME}/, so files land in workspace
@@ -248,7 +248,7 @@ jobs:
         run: |
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
           PREFIX=$(echo "${S3_PREFIX}" | xargs)
-          aws s3 rm "s3://${BUCKET}/${PREFIX}/${REPO_NAME}_${RUN_ID}/repo.tar.gz"
+          aws s3 rm "s3://${BUCKET}/${PREFIX}/${REPO_NAME}/${RUN_ID}/repo.tar.gz"
 
       - name: Commit and push changes
         run: |
