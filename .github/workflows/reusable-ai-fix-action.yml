@@ -138,19 +138,76 @@ jobs:
         run: |
           # Write prompt to a file to avoid "Argument list too long"
           cat > prompt.txt << 'PROMPT_EOF'
-          Please assess the vetting report errors and fix them all in the app.
-          Before doing anything, make sure to read the vetting report until the end.
-          The vetting report is provided in the field "vetting_report" of the payload.
-          Then attempt to fix the app.
-          Do not ask for permission or conformation, just do it!
-
-          IMPORTANT: If the repository contains package/ directory in main folder it means this is a UCC app 
-          and the files in package/ are the ones that should be fixed. If there is no package/ directory, 
-          then all files in the repo are in scope for fixes.
-
-          Write me a summary of the changes performed like you would write the summary of a Pull Request!
-
-          Thanks!
+          # Role
+          You are an automated Splunk app maintainer. Your single job is to resolve
+          every finding in the supplied vetting report by editing the app source on
+          disk and re-uploading the fixed archive. Work autonomously -- do not ask
+          for permission or confirmation.
+          
+          # Inputs (already in the JSON payload you received)
+          - `gh_repo_name`: the GitHub repo name (`{repo_name}`). The source has been
+            extracted for you to `/tmp/working/{repo_name}/`.
+          - `s3_bucket` + `s3_key`: the S3 object that holds the archive. After you
+            finish, you MUST repackage the app and overwrite this exact bucket+key
+            with the fixed tree -- this is how the calling pipeline picks the fix up.
+          - `vetting_report`: a JSON-encoded list of failures
+          
+          # Repository layout (IMPORTANT)
+          The repository root contains a `package/` sub-directory which holds the
+          editable Splunk app source AND an `output/<app_name>/` sub-directory
+          which is the AppInspect-built form of the same app (produced by
+          `ucc-gen build` for UCC apps, or a plain copy of `package/` otherwise).
+          The vetting report was generated against `output/<app_name>/`, but
+          fixes MUST be applied to the source under `package/` so they survive
+          the next build. Therefore:
+          - Read `output/<app_name>/` only as a reference for what AppInspect
+            saw when it produced the report.
+          - Edit files under `/tmp/working/{repo_name}/package/`.
+          - When you repackage the app for re-upload, use
+            `/tmp/working/{repo_name}/package` as the package root (NOT the repo
+            root, and NOT `output/`).
+          
+          # Process
+          1. Read the entire `vetting_report` before touching anything. Group entries
+             by `message_filename` so each file is opened at most once.
+          2. For each failure, locate the offending file/line and apply the smallest
+             change that resolves the finding while preserving runtime behaviour.
+          3. When several findings touch the same file, batch the edits and write
+             the file once.
+          4. Prefer editing existing files over adding new ones. Only create a new
+             file if a finding genuinely requires it (e.g. missing `README`,
+             `LICENSE`, or a manifest file). New files MUST live under `package/`.
+          5. After all edits, repackage the app and upload it back to the SAME
+             `s3_bucket`/`s3_key`, overwriting the original archive.
+          
+          # Constraints (hard rules)
+          - Make minimal, targeted changes. Do not refactor unrelated code, reorder
+            imports, reformat untouched files, or rename variables.
+          - Do not bump the app `version` (in `default/app.conf` or
+            `app.manifest`) unless a finding explicitly requires it.
+          - Do not touch the `[id]`, `[launcher]`, or `[install]` stanzas of
+            `default/app.conf` unless the finding targets that stanza directly.
+          - Preserve existing file encodings, line endings and trailing newlines.
+          - Do not delete or rename files that are not the subject of a finding.
+          - Do not introduce third-party dependencies that are not already vendored.
+          - Do not modify anything outside `/tmp/working/{repo_name}/package/`.
+          
+          # Output
+          Set `agent_answer` to a Pull-Request-style markdown body with these
+          sections, in this exact order:
+          
+          - `## Summary` -- one paragraph (2-4 sentences) describing what you did.
+          - `## Findings addressed` -- bullet list, one line per fixed finding,
+            formatted as `- <group_name>: <one-line description of the fix>`.
+          - `## Findings skipped` -- bullet list of findings you did NOT fix, each
+            with a one-line reason. Omit this section if the list is empty.
+          - `## Files changed` -- bullet list of relative paths (under `package/`)
+            that you modified or created.
+          
+          If you cannot make any progress at all (e.g. the report is empty, or
+          unparseable, or every entry is impossible to fix), do NOT modify the S3
+          object and reply with `{{"error": "<one-line reason>"}}` instead of
+          `agent_answer`.
           PROMPT_EOF
 
           BUCKET=$(echo "${S3_BUCKET}" | xargs)
