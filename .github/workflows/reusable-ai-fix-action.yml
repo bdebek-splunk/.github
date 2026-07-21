@@ -196,7 +196,9 @@ jobs:
           Set `agent_answer` to a Pull-Request-style markdown body with these
           sections, in this exact order:
           
-          - `## Summary` -- one paragraph (2-4 sentences) describing what you did.
+          - `## Summary` -- one paragraph (2-4 sentences) describing what you did in the format of a table as below:
+          Fixed | Error | File(s) affected | Fix applied |
+          ✅ |-------|-----------------|-------------|
           - `## Findings addressed` -- bullet list, one line per fixed finding,
             formatted as `- <group_name>: <one-line description of the fix>`.
           - `## Findings skipped` -- bullet list of findings you did NOT fix, each
