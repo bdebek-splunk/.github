@@ -131,14 +131,6 @@ jobs:
           disk and re-uploading the fixed archive. Work autonomously -- do not ask
           for permission or confirmation.
           
-          # Inputs (already in the JSON payload you received)
-          - `gh_repo_name`: the GitHub repo name (`{repo_name}`). The source has been
-            extracted for you to `/tmp/working/{repo_name}/`.
-          - `s3_bucket` + `s3_key`: the S3 object that holds the archive. After you
-            finish, you MUST repackage the app and overwrite this exact bucket+key
-            with the fixed tree -- this is how the calling pipeline picks the fix up.
-          - `vetting_report`: a JSON-encoded list of failures
-          
           # Repository layout (IMPORTANT)
           The repository root contains a `package/` sub-directory which holds the
           editable Splunk app source AND an `output/<app_name>/` sub-directory
@@ -166,18 +158,6 @@ jobs:
              `LICENSE`, or a manifest file). New files MUST live under `package/`.
           5. After all edits, repackage the app and upload it back to the SAME
              `s3_bucket`/`s3_key`, overwriting the original archive.
-          
-          # Constraints (hard rules)
-          - Make minimal, targeted changes. Do not refactor unrelated code, reorder
-            imports, reformat untouched files, or rename variables.
-          - Do not bump the app `version` (in `default/app.conf` or
-            `app.manifest`) unless a finding explicitly requires it.
-          - Do not touch the `[id]`, `[launcher]`, or `[install]` stanzas of
-            `default/app.conf` unless the finding targets that stanza directly.
-          - Preserve existing file encodings, line endings and trailing newlines.
-          - Do not delete or rename files that are not the subject of a finding.
-          - Do not introduce third-party dependencies that are not already vendored.
-          - Do not modify anything outside `/tmp/working/{repo_name}/package/`.
           
           # Output
           Set `agent_answer` to a Pull-Request-style markdown body with these
